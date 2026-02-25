@@ -1,6 +1,7 @@
-use crossterm::queue;
+use crossterm::{queue, Command};
 use crossterm::cursor::{MoveTo, Hide, Show};
 use crossterm::style::Print;
+use core::fmt::Display;
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode, size, Clear, ClearType};
 use std::io::{stdout, Write, Error};
 
@@ -33,43 +34,48 @@ impl Terminal {
         Ok(())
     }
 
+    fn queue_command<T: Command>(command: T) -> Result<(), Error> {
+        queue!(stdout(), command)?;
+        Ok(())
+    }
+
     pub fn execute() -> Result<(), Error> {
         stdout().flush()?;
         Ok(())
     }
 
     pub fn clear_screen() -> Result<(), Error> {
-        queue!(stdout(), Clear(ClearType::All))?;
+        Self::queue_command(Clear(ClearType::All))?;
         Ok(())
     }
 
-    pub fn print(message: &str) -> Result<(), Error> {
-        queue!(stdout(), Print(message))?;
+    pub fn print<T: Display>(string: T) -> Result<(), Error> {
+        Self::queue_command(Print(string))?;
         Ok(())
     }
 
     pub fn clear_line() -> Result<(), Error> {
-        queue!(stdout(), Clear(ClearType::CurrentLine))?;
+        Self::queue_command(Clear(ClearType::CurrentLine))?;
         Ok(())
     }
 
     pub fn move_cursor_to(position: Position) -> Result<(), Error> {
-        queue!(stdout(), MoveTo(position.x, position.y))?;
+        Self::queue_command(MoveTo(position.x, position.y))?;
         Ok(())
     }
 
     pub fn size() -> Result<Size, Error> {
         let (columns, rows) = size()?;
-        Ok(Size { height: columns, width: rows })
+        Ok(Size { height: rows, width: columns })
     }
 
     pub fn hide_cursor() -> Result<(), Error> {
-        queue!(stdout(), Hide)?;
+        Self::queue_command(Hide)?;
         Ok(())
     }
 
     pub fn show_cursor() -> Result<(), Error> {
-        queue!(stdout(), Show)?;
+        Self::queue_command(Show)?;
         Ok(())
     }
 }
