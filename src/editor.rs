@@ -1,20 +1,25 @@
-use crossterm::event::{read, Event, Event::Key, KeyCode::Char, KeyEvent, KeyModifiers};
+use crossterm::event::{read, Event, Event::Key, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::io::Error;
 mod terminal;
 use terminal::{Terminal, Size, Position};
+use std::cmp::min;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION"); 
 
+#[derive(Copy, Clone, Default)]
+struct Location {
+    x: usize,
+    y: usize,
+}
+
+#[derive(Default)]
 pub struct Editor {
-    should_quit: bool
+    should_quit: bool,
+    location: Location // current location of the mouse cursor
 }
 
 impl Editor {
-    pub const fn default() -> Self {
-        Self { should_quit: false }
-    }
-
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
         let result = self.repl();
@@ -44,29 +49,33 @@ impl Editor {
     }
 
     fn refresh_screen(&self) -> Result<(), Error> {
-        Terminal::hide_cursor()?;
+        Terminal::hide_caret()?;
+        Terminal::move_caret_to(Position::default())?;
         if self.should_quit {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye.\r\n")?;
         } else {
             Self::draw_rows()?;
-            Terminal::move_cursor_to(Position{x: 0, y: 0})?;
+            Terminal::move_caret_to(Position {
+                col: self.location.x,
+                row: self.location.y
+            })?;
         }
-        Terminal::show_cursor()?;
+        Terminal::show_caret()?;
         Terminal::execute()?;
         Ok(())
     }
 
     fn repl(&mut self) -> Result<(), Error> {
         loop {
-            Terminal::hide_cursor()?;
+            Terminal::hide_caret()?;
             self.refresh_screen()?;
-            Terminal::show_cursor()?;
+            Terminal::show_caret()?;
             if self.should_quit {
                 break;
             }
             let event = read()?;
-            self.evaluate_event(&event);    
+            self.evaluate_event(&event)?;    
         }
         Ok(())
     }
@@ -93,17 +102,67 @@ impl Editor {
         Ok(())
     }
 
-    fn evaluate_event(&mut self, event: &Event) {
+    fn move_point(&mut self, key_code: &KeyCode) -> Result<(), Error> {
+        // i.e. must be at minimum (0,0) and a maximum of Terminal::size .height and .width
+        let Location { mut x, mut y } = self.location;
+        let Size { height, width } = Terminal::size()?;
+
+        match key_code {
+            KeyCode::Up => {
+                // Prevent cursor from going to high up or to the left using saturating subtractions since Position
+                // is a usize the minimum is at (0,0), i.e. the top left of the pane.
+                y = y.saturating_sub(1);
+            },
+            KeyCode::Down => {
+                y = min(y.saturating_add(1), height.saturating_sub(1));
+            },
+            KeyCode::Left => {
+                // See doc above
+                x = x.saturating_sub(1);
+            },
+            KeyCode::Right => {
+                x = min(x.saturating_add(1), width.saturating_sub(1));
+            },
+            KeyCode::PageUp => {
+                y = 0;
+            }
+            KeyCode::PageDown => {
+                y = height.saturating_sub(1);
+            }
+            KeyCode::Home => {
+                x = 0;
+            }
+            KeyCode::End => {
+                x = width.saturating_sub(1);
+            }
+            _ => ()
+        }
+        self.location = Location{ x, y };
+        Ok(())
+    }
+
+    fn evaluate_event(&mut self, event: &Event) -> Result<(), Error> {
         if let Key(KeyEvent {
-            code, modifiers, ..
+            code, modifiers, kind: KeyEventKind::Press, ..
         }) = event {
             match code {
-                Char('q') if *modifiers == KeyModifiers::CONTROL => {
+                KeyCode::Char('q') if *modifiers == KeyModifiers::CONTROL => {
                     self.should_quit = true;
+                },
+                KeyCode::Up
+                | KeyCode::Down
+                | KeyCode::Left
+                | KeyCode::Right
+                | KeyCode::PageDown
+                | KeyCode::PageUp
+                | KeyCode::End
+                | KeyCode::Home => {
+                    self.move_point(code)?;
                 },
                 _ => (),
             }
         }
+        Ok(())
     }
 
 }
