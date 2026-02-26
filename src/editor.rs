@@ -102,7 +102,7 @@ impl Editor {
         Ok(())
     }
 
-    fn move_point(&mut self, key_code: &KeyCode) -> Result<(), Error> {
+    fn move_point(&mut self, key_code: KeyCode) -> Result<(), Error> {
         // i.e. must be at minimum (0,0) and a maximum of Terminal::size .height and .width
         let Location { mut x, mut y } = self.location;
         let Size { height, width } = Terminal::size()?;
@@ -157,7 +157,7 @@ impl Editor {
                 | KeyCode::PageUp
                 | KeyCode::End
                 | KeyCode::Home => {
-                    self.move_point(code)?;
+                    self.move_point(*code)?;
                 },
                 _ => (),
             }
