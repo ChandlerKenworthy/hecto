@@ -1,5 +1,5 @@
 use crossterm::event::{read, Event, Event::Key, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use std::io::Error;
+use std::{env, io::Error};
 mod terminal;
 use terminal::{Terminal, Size, Position};
 use std::cmp::min;
@@ -22,9 +22,17 @@ pub struct Editor {
 impl Editor {
     pub fn run(&mut self) {
         Terminal::initialize().unwrap();
+        self.handle_args();
         let result = self.repl();
         Terminal::terminate().unwrap();
         result.unwrap();
+    }
+
+    fn handle_args(&mut self) {
+        let args: Vec<String> = env::args().collect();
+        if let Some(file_name) = args.get(1) {
+            self.view.load(file_name);
+        }
     }
 
     fn refresh_screen(&self) -> Result<(), Error> {
