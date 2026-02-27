@@ -14,6 +14,7 @@ struct Location {
 
 #[derive(Default)]
 pub struct Editor {
+    view: View,
     should_quit: bool,
     location: Location // current location of the mouse cursor
 }
@@ -33,7 +34,7 @@ impl Editor {
             Terminal::clear_screen()?;
             Terminal::print("Goodbye.\r\n")?;
         } else {
-            View::render()?; // previously draw_rows
+            self.view.render()?;
             Terminal::move_caret_to(Position {
                 col: self.location.x,
                 row: self.location.y
