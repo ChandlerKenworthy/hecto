@@ -1,16 +1,9 @@
 use std::io::Error;
 use std::fs::read_to_string;
 
+#[derive(Default)]
 pub struct Buffer {
     pub lines: Vec<String>
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Self {
-            lines: Vec::new()
-        }
-    }
 }
 
 impl Buffer {
